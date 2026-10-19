@@ -1,5 +1,5 @@
 {
-  "apiBaseUrl": "https://protectavigp-qas.protectasecurity.pe/backend/api",
+  "apiBaseUrl": "/api",
   "platformReturnUrl": "https://plataformadigital.protectasecurity.pe/",
   "pageSizeDefault": 12,
   "featureFlags": {},

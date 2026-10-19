@@ -1,31 +1,28 @@
 import { toRow, toSearchResult, toStatus, monthName } from './eecc.mapper';
 import { EeccRowDto, EeccSearchDto } from './eecc.dto';
+import { hasDocument } from '../domain/eecc-row.model';
 
 const dto: EeccRowDto = {
-  id: 'e-1',
-  policyNumber: '7107004912',
-  documentNumber: '71418265',
-  contratante: 'Bernabe Rios Juan',
-  asegurado: 'Bernabe Rios Juan',
-  closingMonth: 3,
-  closingYear: 2026,
-  contratanteStatus: 'GENERATED_SENT',
-  aseguradoStatus: null,
-  generatedAt: '2026-04-01T09:00:00-05:00',
+  policyNumber: 7107004912,
+  contractorDocNumber: '71418265',
+  contractorFullName: 'Bernabe Rios Juan',
+  insuredFullName: 'Bernabe Rios Juan',
+  closingPeriodMonth: 3,
+  closingPeriodYear: 2026,
+  contractorEeccStatus: 3,
+  insuredEeccStatus: 0,
+  generationDate: '2026-04-01T09:00:00-05:00',
 };
 
 describe('eecc.mapper', () => {
-  beforeEach(() => jest.spyOn(console, 'warn').mockImplementation(() => undefined));
-  afterEach(() => jest.restoreAllMocks());
-
   it('mapea los tres estados conocidos', () => {
-    expect(toStatus('GENERATED_SENT')).toBe('GENERADO_ENVIADO');
-    expect(toStatus('GENERATED_NOT_SENT')).toBe('GENERADO_NO_ENVIADO');
-    expect(toStatus('PENDING')).toBe('PENDIENTE');
+    expect(toStatus(3)).toBe('GENERADO_ENVIADO');
+    expect(toStatus(2)).toBe('GENERADO_NO_ENVIADO');
+    expect(toStatus(1)).toBe('PENDIENTE');
   });
 
   it('un estado nuevo cae en DESCONOCIDO, no rompe la tabla', () => {
-    expect(toStatus('SOMETHING_NEW')).toBe('DESCONOCIDO');
+    expect(toStatus(99)).toBe('DESCONOCIDO');
     expect(toStatus(null)).toBe('DESCONOCIDO');
   });
 
@@ -34,7 +31,7 @@ describe('eecc.mapper', () => {
   });
 
   it('con asegurado distinto, mapea su estado', () => {
-    const r = toRow({ ...dto, asegurado: 'Otro', aseguradoStatus: 'PENDING' });
+    const r = toRow({ ...dto, insuredFullName: 'Otro', insuredEeccStatus: 1 });
     expect(r.aseguradoStatus).toBe('PENDIENTE');
   });
 
@@ -43,8 +40,23 @@ describe('eecc.mapper', () => {
     expect(monthName(12)).toBe('Diciembre');
   });
 
+  it('identifica la fila por poliza y periodo, que es lo que pide el visor', () => {
+    const r = toRow(dto);
+    expect(r.id).toBe('7107004912-2026-3');
+    expect(r.policyNumber).toBe('7107004912');
+    expect(r.closingYear).toBe(2026);
+    expect(r.closingMonth).toBe(3);
+  });
+
+  it('solo hay documento (lupa) cuando el EECC esta generado', () => {
+    expect(hasDocument(toRow({ ...dto, contractorEeccStatus: 3 }))).toBe(true);
+    expect(hasDocument(toRow({ ...dto, contractorEeccStatus: 2 }))).toBe(true);
+    expect(hasDocument(toRow({ ...dto, contractorEeccStatus: 1 }))).toBe(false);
+    expect(hasDocument(toRow({ ...dto, contractorEeccStatus: 1, insuredEeccStatus: 2 }))).toBe(true);
+  });
+
   it('normaliza total y summary ausentes', () => {
-    const res = toSearchResult({ items: [dto], page: 1, pageSize: 12 } as unknown as EeccSearchDto);
+    const res = toSearchResult({ data: [dto] } as unknown as EeccSearchDto, { page: 1, pageSize: 12 });
     expect(res.page.total).toBe(0);
     expect(res.summary.total).toBe(0);
   });
